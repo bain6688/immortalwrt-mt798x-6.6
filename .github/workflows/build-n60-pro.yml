@@ -63,18 +63,25 @@ jobs:
 
     - name: Load custom configuration
       run: |
-        # 1. 运行 DIY 脚本 (在此下载 AGH 核心)
+        # 1. 赋予权限
+        chmod +x $DIY_P1_SH
         chmod +x $DIY_P2_SH
-        ./$DIY_P2_SH
         
-        # 2. 将下载的核心同步到源码 files 目录
-        [ -e files ] && cp -rf files openwrt/
+        # 2. 预先处理配置文件（确保它进入源码目录）
+        [ -e $CONFIG_FILE ] && cp $CONFIG_FILE openwrt/.config
         
-        # 3. 移动配置文件
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-        
-        # 4. 进入源码目录进行 defconfig 验证
+        # 3. 进入源码目录执行核心逻辑
         cd openwrt
+        
+        # 执行脚本 (此时脚本内的 find 命令能找到 target/ 目录下的驱动头文件)
+        $GITHUB_WORKSPACE/$DIY_P2_SH
+        
+        # 将脚本下载生成的 files 同步到源码构建目录
+        # 注意：如果脚本里写的是 mkdir -p files，那么它就在 openwrt/files
+        # 如果有外部上传的 files，则合并
+        [ -e $GITHUB_WORKSPACE/files ] && cp -rf $GITHUB_WORKSPACE/files ./
+        
+        # 4. 最后执行一次配置刷新
         make defconfig
 
     - name: Download package
